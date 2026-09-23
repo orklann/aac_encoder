@@ -1,0 +1,9 @@
+name: aac_encoder
+version: 0.1.0
+
+authors:
+  - Tommy Jeff <threcius@yahoo.com>
+
+crystal: '>= 1.19.1'
+
+license: MIT
