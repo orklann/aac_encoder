@@ -23,6 +23,6 @@ class AACEncoder
     return if @handle.null?
     handle = @handle
     @handle = Pointer(Void).null
-    Native.aac_encoder_finish(@handle)
+    Native.aac_encoder_finish(handle)
   end
 end
