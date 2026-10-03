@@ -6,17 +6,23 @@ lib Native
 end
 
 class AACEncoder
+  @handle : Void*
+
   def initialize(output_path : String, sample_rate : Float32 = 48000.0_f32, bitrate : Float32 = 128000.0_f32)
-    Native.aac_encoder_start(output_path, sample_rate, bitrate)
+  @handle = Native.aac_encoder_start(output_path, sample_rate, bitrate)
   end
 
   # Writes raw PCM bytes to the encoder.
   def write(bytes : Bytes) : Nil
-    Native.aac_encoder_write(bytes.to_unsafe, bytes.size.to_u32)
+    return if @handle.null?
+    Native.aac_encoder_write(@handle, bytes.to_unsafe, bytes.size.to_u32)
   end
 
   # Finalizes encoding and flushes/closes the output file.
   def finish : Nil
-    Native.aac_encoder_finish
+    return if @handle.null?
+    handle = @handle
+    @handle = Pointer(Void).null
+    Native.aac_encoder_finish(@handle)
   end
 end
