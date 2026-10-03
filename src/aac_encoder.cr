@@ -9,7 +9,7 @@ class AACEncoder
   @handle : Void*
 
   def initialize(output_path : String, sample_rate : Float32 = 48000.0_f32, bitrate : Float32 = 128000.0_f32)
-  @handle = Native.aac_encoder_start(output_path, sample_rate, bitrate)
+  @handle = Native.aac_encoder_create(output_path, sample_rate, bitrate)
   end
 
   # Writes raw PCM bytes to the encoder.
