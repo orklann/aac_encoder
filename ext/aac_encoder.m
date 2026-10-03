@@ -201,109 +201,110 @@ static NSError *MakeError(OSStatus status, NSString *message)
 - (BOOL)writePCMData:(NSData *)data
                error:(NSError **)error
 {
-    if (_finished) {
-        if (error) {
-            *error = [NSError errorWithDomain:PCMToAACErrorDomain
-                                         code:-1
-                                     userInfo:@{
-                NSLocalizedDescriptionKey:
-                    @"Encoder has already been finished"
-            }];
+    @autoreleasepool {
+        if (_finished) {
+            if (error) {
+                *error = [NSError errorWithDomain:PCMToAACErrorDomain
+                                             code:-1
+                                         userInfo:@{
+                    NSLocalizedDescriptionKey:
+                        @"Encoder has already been finished"
+                }];
+            }
+
+            return NO;
         }
 
-        return NO;
-    }
+        if (!_audioFile) {
+            if (error) {
+                *error = [NSError errorWithDomain:PCMToAACErrorDomain
+                                             code:-2
+                                         userInfo:@{
+                    NSLocalizedDescriptionKey:
+                        @"Audio file is not open"
+                }];
+            }
 
-    if (!_audioFile) {
-        if (error) {
-            *error = [NSError errorWithDomain:PCMToAACErrorDomain
-                                         code:-2
-                                     userInfo:@{
-                NSLocalizedDescriptionKey:
-                    @"Audio file is not open"
-            }];
+            return NO;
         }
 
-        return NO;
-    }
-
-    if (data.length == 0) {
-        return YES;
-    }
-
-    //
-    // Each stereo 16-bit PCM frame is 4 bytes:
-    //
-    //   L: 2 bytes
-    //   R: 2 bytes
-    //
-    // stdout reads aren't guaranteed to be frame-aligned,
-    // so combine with any bytes left over from the previous call.
-    //
-
-    [_pendingPCM appendData:data];
-
-    NSUInteger frameSize = 4;
-
-    NSUInteger completeBytes =
-        (_pendingPCM.length / frameSize) * frameSize;
-
-    if (completeBytes == 0) {
-        return YES;
-    }
-
-    UInt32 frameCount =
-        (UInt32)(completeBytes / frameSize);
-
-    AudioBufferList bufferList;
-
-    memset(&bufferList, 0, sizeof(bufferList));
-
-    bufferList.mNumberBuffers = 1;
-
-    bufferList.mBuffers[0].mNumberChannels = 2;
-    bufferList.mBuffers[0].mDataByteSize =
-        (UInt32)completeBytes;
-
-    bufferList.mBuffers[0].mData =
-        (void *)_pendingPCM.bytes;
-
-    OSStatus status = ExtAudioFileWrite(
-        _audioFile,
-        frameCount,
-        &bufferList
-    );
-
-    if (status != noErr) {
-        if (error) {
-            *error = MakeError(
-                status,
-                @"Failed to encode PCM data"
-            );
+        if (data.length == 0) {
+            return YES;
         }
 
-        return NO;
+        //
+        // Each stereo 16-bit PCM frame is 4 bytes:
+        //
+        //   L: 2 bytes
+        //   R: 2 bytes
+        //
+        // stdout reads aren't guaranteed to be frame-aligned,
+        // so combine with any bytes left over from the previous call.
+        //
+
+        [_pendingPCM appendData:data];
+
+        NSUInteger frameSize = 4;
+
+        NSUInteger completeBytes =
+            (_pendingPCM.length / frameSize) * frameSize;
+
+        if (completeBytes == 0) {
+            return YES;
+        }
+
+        UInt32 frameCount =
+            (UInt32)(completeBytes / frameSize);
+
+        AudioBufferList bufferList;
+
+        memset(&bufferList, 0, sizeof(bufferList));
+
+        bufferList.mNumberBuffers = 1;
+
+        bufferList.mBuffers[0].mNumberChannels = 2;
+        bufferList.mBuffers[0].mDataByteSize =
+            (UInt32)completeBytes;
+
+        bufferList.mBuffers[0].mData =
+            (void *)_pendingPCM.bytes;
+
+        OSStatus status = ExtAudioFileWrite(
+            _audioFile,
+            frameCount,
+            &bufferList
+        );
+
+        if (status != noErr) {
+            if (error) {
+                *error = MakeError(
+                    status,
+                    @"Failed to encode PCM data"
+                );
+            }
+
+            return NO;
+        }
+
+        //
+        // Remove the bytes that were successfully encoded.
+        //
+        // Keep 0-3 bytes for the next write.
+        //
+
+        NSUInteger remainingBytes =
+            _pendingPCM.length - completeBytes;
+
+        if (remainingBytes > 0) {
+            NSData *remaining =
+                [_pendingPCM subdataWithRange:
+                    NSMakeRange(completeBytes, remainingBytes)];
+
+            [_pendingPCM setData:remaining];
+        } else {
+            [_pendingPCM setLength:0];
+        }
     }
-
-    //
-    // Remove the bytes that were successfully encoded.
-    //
-    // Keep 0-3 bytes for the next write.
-    //
-
-    NSUInteger remainingBytes =
-        _pendingPCM.length - completeBytes;
-
-    if (remainingBytes > 0) {
-        NSData *remaining =
-            [_pendingPCM subdataWithRange:
-                NSMakeRange(completeBytes, remainingBytes)];
-
-        [_pendingPCM setData:remaining];
-    } else {
-        [_pendingPCM setLength:0];
-    }
-
     return YES;
 }
 
