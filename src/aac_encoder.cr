@@ -1,8 +1,8 @@
 @[Link(ldflags: "-framework AudioToolbox -framework AVFoundation -framework Foundation #{__DIR__}/../ext/aac_encoder.m")]
 lib Native
-  fun aac_encoder_start(out : LibC::Char*, sample_rate : Float32, bitrate : Float32)
-  fun aac_encoder_write(buffer : UInt8*, length : UInt32)
-  fun aac_encoder_finish
+  fun aac_encoder_create(out : LibC::Char*, sample_rate : Float32, bitrate : Float32) : Void*
+  fun aac_encoder_write(handle : Void*, buffer : UInt8*, length : UInt32)
+  fun aac_encoder_finish(handle : Void*)
 end
 
 class AACEncoder
